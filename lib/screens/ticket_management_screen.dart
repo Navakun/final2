@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_transport/model/smart_route.dart';
+import 'package:smart_transport/model/transport_ticket.dart'; // เพิ่มการนำเข้า TransportTicket
 import 'package:smart_transport/provider/smart_transport_provider.dart';
 
 class TicketManagementScreen extends StatelessWidget {
@@ -27,20 +28,42 @@ class TicketManagementScreen extends StatelessWidget {
             itemCount: provider.tickets.length,
             itemBuilder: (context, index) {
               final ticket = provider.tickets[index];
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                child: ListTile(
-                  title: Text(ticket.routeName),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('ค่าโดยสาร: ${ticket.fare} บาท'),
-                      Text('วันที่ซื้อ: ${ticket.purchaseDate.toString().substring(0, 16)}'),
-                      Text('สถานะ: ${ticket.status}'),
-                    ],
+              return Dismissible(
+                key: Key(ticket.id.toString()),
+                direction: DismissDirection.horizontal,
+                onDismissed: (direction) {
+                  provider.cancelTicket(ticket);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('ยกเลิกตั๋ว ${ticket.routeName} แล้ว')),
+                  );
+                },
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                child: Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  child: ListTile(
+                    title: Text(ticket.routeName),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('ค่าโดยสาร: ${ticket.fare} บาท'),
+                        Text('วันที่ซื้อ: ${ticket.purchaseDate.toString().substring(0, 16)}'),
+                        Text('สถานะ: ${ticket.status}'),
+                      ],
+                    ),
+                    leading: const Icon(Icons.confirmation_num),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.cancel),
+                      onPressed: () {
+                        _confirmCancelTicket(context, provider, ticket);
+                      },
+                    ),
                   ),
-                  leading: const Icon(Icons.confirmation_num),
                 ),
               );
             },
@@ -118,6 +141,34 @@ class TicketManagementScreen extends StatelessWidget {
                 }
               },
               child: const Text('ซื้อ'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmCancelTicket(BuildContext context, SmartTransportProvider provider, TransportTicket ticket) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('ยืนยันการยกเลิกตั๋ว'),
+          content: Text('คุณต้องการยกเลิกตั๋วสำหรับ ${ticket.routeName} หรือไม่?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ไม่'),
+            ),
+            TextButton(
+              onPressed: () {
+                provider.cancelTicket(ticket);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('ยกเลิกตั๋ว ${ticket.routeName} แล้ว')),
+                );
+              },
+              child: const Text('ใช่'),
             ),
           ],
         );

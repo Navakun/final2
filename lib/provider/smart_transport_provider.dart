@@ -73,6 +73,12 @@ class SmartTransportProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> cancelTicket(TransportTicket ticket) async {
+    await _db.deleteTicket(ticket);
+    _tickets.removeWhere((t) => t.id == ticket.id);
+    notifyListeners();
+  }
 }
 
 extension SmartRouteExtension on SmartRoute {

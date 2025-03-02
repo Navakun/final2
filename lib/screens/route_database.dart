@@ -117,4 +117,11 @@ class RouteDatabase {
     await db.close();
     return tickets;
   }
+
+  Future<void> deleteTicket(TransportTicket ticket) async {
+    var db = await openDatabase();
+    var store = intMapStoreFactory.store('tickets');
+    await store.delete(db, finder: Finder(filter: Filter.equals(Field.key, ticket.id)));
+    await db.close();
+  }
 }

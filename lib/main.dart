@@ -4,6 +4,9 @@ import 'package:smart_transport/model/smart_route.dart';
 import 'package:smart_transport/provider/smart_transport_provider.dart';
 import 'package:smart_transport/screens/route_form_screen.dart';
 import 'package:smart_transport/screens/route_edit_screen.dart';
+import 'package:smart_transport/screens/ticket_management_screen.dart';
+import 'package:smart_transport/screens/user_profile_screen.dart';
+import 'package:smart_transport/model/transport_ticket.dart';
 
 void main() {
   runApp(
@@ -30,7 +33,7 @@ class SmartTransportApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const TransportHomePage(),
+        '/': (context) => const TransportNavigationHost(),
         '/routeForm': (context) => const RouteFormScreen(),
         '/routeEdit': (context) => RouteEditScreen(
               route: ModalRoute.of(context)!.settings.arguments as SmartRoute,
@@ -40,19 +43,63 @@ class SmartTransportApp extends StatelessWidget {
   }
 }
 
-class TransportHomePage extends StatefulWidget {
-  const TransportHomePage({super.key});
+class TransportNavigationHost extends StatefulWidget {
+  const TransportNavigationHost({super.key});
 
   @override
-  State<TransportHomePage> createState() => _TransportHomePageState();
+  State<TransportNavigationHost> createState() => _TransportNavigationHostState();
 }
 
-class _TransportHomePageState extends State<TransportHomePage> {
+class _TransportNavigationHostState extends State<TransportNavigationHost> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = [
+    const TransportHomePage(), // หน้าเส้นทาง
+    const TicketManagementScreen(), // หน้าตั๋ว
+    const UserProfileScreen(), // หน้าโปรไฟล์
+  ];
+
   @override
   void initState() {
     super.initState();
     Provider.of<SmartTransportProvider>(context, listen: false).fetchRoutes();
+    Provider.of<SmartTransportProvider>(context, listen: false).fetchTickets();
   }
+
+  void _onNavItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Consumer<SmartTransportProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return _screens[_selectedIndex];
+        },
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavItemTapped,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.directions_bus), label: 'เส้นทาง'),
+          BottomNavigationBarItem(icon: Icon(Icons.confirmation_num), label: 'ตั๋ว'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'โปรไฟล์'),
+        ],
+      ),
+    );
+  }
+}
+
+class TransportHomePage extends StatelessWidget {
+  const TransportHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +118,6 @@ class _TransportHomePageState extends State<TransportHomePage> {
       ),
       body: Consumer<SmartTransportProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
           if (provider.routes.isEmpty) {
             return const Center(
               child: Text(
