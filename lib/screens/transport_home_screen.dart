@@ -2,57 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_transport/model/smart_route.dart';
 import 'package:smart_transport/provider/smart_transport_provider.dart';
-import 'package:smart_transport/screens/route_form_screen.dart';
-import 'package:smart_transport/screens/route_edit_screen.dart';
 
-void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => SmartTransportProvider()),
-      ],
-      child: const SmartTransportApp(),
-    ),
-  );
-}
-
-class SmartTransportApp extends StatelessWidget {
-  const SmartTransportApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Smart Public Transport',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const TransportHomePage(),
-        '/routeForm': (context) => const RouteFormScreen(),
-        '/routeEdit': (context) => RouteEditScreen(
-              route: ModalRoute.of(context)!.settings.arguments as SmartRoute,
-            ),
-      },
-    );
-  }
-}
-
-class TransportHomePage extends StatefulWidget {
-  const TransportHomePage({super.key});
-
-  @override
-  State<TransportHomePage> createState() => _TransportHomePageState();
-}
-
-class _TransportHomePageState extends State<TransportHomePage> {
-  @override
-  void initState() {
-    super.initState();
-    Provider.of<SmartTransportProvider>(context, listen: false).fetchRoutes();
-  }
+class TransportHomeScreen extends StatelessWidget {
+  const TransportHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +23,6 @@ class _TransportHomePageState extends State<TransportHomePage> {
       ),
       body: Consumer<SmartTransportProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
           if (provider.routes.isEmpty) {
             return const Center(
               child: Text(
