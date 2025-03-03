@@ -63,7 +63,7 @@ class _TransportNavigationHostState extends State<TransportNavigationHost> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<SmartTransportProvider>(context, listen: false);
-      provider.fetchUsers(); // เรียก fetchUsers
+      provider.fetchUsers();
       provider.fetchRoutes();
       provider.fetchTickets();
     });
@@ -101,8 +101,19 @@ class _TransportNavigationHostState extends State<TransportNavigationHost> {
   }
 }
 
-class TransportHomePage extends StatelessWidget {
+class TransportHomePage extends StatefulWidget {
   const TransportHomePage({super.key});
+
+  @override
+  State<TransportHomePage> createState() => _TransportHomePageState();
+}
+
+class _TransportHomePageState extends State<TransportHomePage> {
+  String _searchQuery = '';
+
+  // คำแนะนำ: ถ้าต้องการค้นหาแบบเจาะจงตามจุดเริ่มต้นและจุดสิ้นสุด
+  // String _startPointQuery = '';
+  // String _endPointQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -133,89 +144,163 @@ class TransportHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer<SmartTransportProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (provider.currentUser == null) {
-            return const Center(
-              child: Text(
-                'กรุณาเลือกผู้ใช้ในหน้าโปรไฟล์',
-                style: TextStyle(fontSize: 20),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'ค้นหาเส้นทาง (ชื่อ, จุดเริ่มต้น, จุดสิ้นสุด)',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = ''; // ล้างคำค้นหา
+                          });
+                        },
+                      )
+                    : null, // ปุ่มล้างคำค้นหา (คำแนะนำ)
               ),
-            );
-          }
-          if (provider.routes.isEmpty) {
-            return const Center(
-              child: Text(
-                'ไม่มีเส้นทางขนส่งในขณะนี้',
-                style: TextStyle(fontSize: 20),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+          // คำแนะนำ: ถ้าต้องการค้นหาแบบเจาะจงตามจุดเริ่มต้นและจุดสิ้นสุด
+          // เพิ่ม TextField อีก 2 ช่องสำหรับ startPoint และ endPoint
+          /*
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'จุดเริ่มต้น',
+                border: OutlineInputBorder(),
               ),
-            );
-          }
-          return ListView.builder(
-            itemCount: provider.routes.length,
-            itemBuilder: (context, index) {
-              SmartRoute route = provider.routes[index];
-              return Dismissible(
-                key: Key(route.id.toString()),
-                direction: DismissDirection.horizontal,
-                onDismissed: provider.currentUser?.role == 'admin'
-                    ? (direction) {
-                        provider.removeRoute(route);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('${route.routeName} ถูกลบแล้ว')),
-                        );
-                      }
-                    : null,
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                child: Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: ListTile(
-                    title: Text(route.routeName),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('จาก: ${route.startPoint} → ถึง: ${route.endPoint}'),
-                        Text('ออก: ${route.departureTime} | ถึง: ${route.estimatedArrivalTime}'),
-                        Text('ราคาตั๋ว: ${route.fare} บาท'),
-                      ],
+              onChanged: (value) {
+                setState(() {
+                  _startPointQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'จุดสิ้นสุด',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _endPointQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+          */
+          Expanded(
+            child: Consumer<SmartTransportProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (provider.currentUser == null) {
+                  return const Center(
+                    child: Text(
+                      'กรุณาเลือกผู้ใช้ในหน้าโปรไฟล์',
+                      style: TextStyle(fontSize: 20),
                     ),
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blue.shade100,
-                      child: Text(route.vehicleNumber),
+                  );
+                }
+                // กรองเส้นทางตามคำค้นหา
+                final filteredRoutes = provider.routes.where((route) {
+                   return route.routeName.toLowerCase().contains(_searchQuery) ||
+                      route.startPoint.toLowerCase().contains(_searchQuery) ||
+                      route.endPoint.toLowerCase().contains(_searchQuery);
+                  // คำแนะนำ: ถ้าต้องการค้นหาแบบเจาะจงตามจุดเริ่มต้นและจุดสิ้นสุด
+                  // return route.startPoint.toLowerCase().contains(_startPointQuery) &&
+                  //        route.endPoint.toLowerCase().contains(_endPointQuery);
+                }).toList();
+
+                if (filteredRoutes.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'ไม่มีเส้นทางที่ตรงกับคำค้นหา',
+                      style: TextStyle(fontSize: 20),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (provider.currentUser?.role == 'admin')
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/routeEdit', arguments: route);
-                            },
+                  );
+                }
+                return ListView.builder(
+                  itemCount: filteredRoutes.length,
+                  itemBuilder: (context, index) {
+                    SmartRoute route = filteredRoutes[index];
+                    return Dismissible(
+                      key: Key(route.id.toString()),
+                      direction: DismissDirection.horizontal,
+                      onDismissed: provider.currentUser?.role == 'admin'
+                          ? (direction) {
+                              provider.removeRoute(route);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('${route.routeName} ถูกลบแล้ว')),
+                              );
+                            }
+                          : null,
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      child: Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        child: ListTile(
+                          title: Text(route.routeName),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('จาก: ${route.startPoint} → ถึง: ${route.endPoint}'),
+                              Text('ออก: ${route.departureTime} | ถึง: ${route.estimatedArrivalTime}'),
+                              Text('ราคาตั๋ว: ${route.fare} บาท'),
+                            ],
                           ),
-                        IconButton(
-                          icon: const Icon(Icons.confirmation_num),
-                          onPressed: () {
-                            _showPurchaseDialog(context, route);
-                          },
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue.shade100,
+                            child: Text(route.vehicleNumber),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (provider.currentUser?.role == 'admin')
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, '/routeEdit', arguments: route);
+                                  },
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.confirmation_num),
+                                onPressed: () {
+                                  _showPurchaseDialog(context, route);
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
