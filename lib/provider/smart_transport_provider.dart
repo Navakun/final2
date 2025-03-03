@@ -10,7 +10,7 @@ class SmartTransportProvider with ChangeNotifier {
   List<User> _users = [];
   User? _currentUser;
   late RouteDatabase _db;
-  bool _isLoading = false; // เพิ่ม _isLoading
+  bool _isLoading = false;
 
   SmartTransportProvider() {
     _db = RouteDatabase(dbName: 'smart_transport.db');
@@ -27,10 +27,14 @@ class SmartTransportProvider with ChangeNotifier {
       : _tickets;
   List<User> get users => _users;
   User? get currentUser => _currentUser;
-  bool get isLoading => _isLoading; // เพิ่ม getter isLoading
+  bool get isLoading => _isLoading;
 
   void setCurrentUser(User user) {
-    _currentUser = user;
+    // ตรวจสอบว่า user อยู่ใน _users หรือไม่
+    if (!_users.any((u) => u.id == user.id)) {
+      _users.add(user);
+    }
+    _currentUser = _users.firstWhere((u) => u.id == user.id);
     notifyListeners();
   }
 
@@ -54,14 +58,27 @@ class SmartTransportProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     _users = await _db.loadAllUsers();
-    if (_users.isNotEmpty && _currentUser == null) {
-      _currentUser = _users.first;
+    if (_users.isNotEmpty) {
+      if (_currentUser == null) {
+        _currentUser = _users.first;
+      } else {
+        // ตรวจสอบว่า _currentUser ยังอยู่ใน _users หรือไม่
+        _currentUser = _users.firstWhere(
+          (u) => u.id == _currentUser!.id,
+          orElse: () => _users.first,
+        );
+      }
+    } else {
+      _currentUser = null; // ถ้าไม่มีผู้ใช้เลย
     }
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addRoute(SmartRoute route) async {
+    if (_currentUser == null || _currentUser!.role != 'admin') {
+      throw Exception('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถเพิ่มเส้นทางได้');
+    }
     int? newId = await _db.insertRoute(route);
     if (newId != null) {
       _routes.add(route.copyWith(id: newId));
@@ -70,12 +87,18 @@ class SmartTransportProvider with ChangeNotifier {
   }
 
   Future<void> removeRoute(SmartRoute route) async {
+    if (_currentUser == null || _currentUser!.role != 'admin') {
+      throw Exception('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบเส้นทางได้');
+    }
     await _db.deleteRoute(route);
     _routes.removeWhere((r) => r.id == route.id);
     notifyListeners();
   }
 
   Future<void> updateRoute(SmartRoute updatedRoute) async {
+    if (_currentUser == null || _currentUser!.role != 'admin') {
+      throw Exception('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถแก้ไขเส้นทางได้');
+    }
     await _db.updateRoute(updatedRoute);
     final index = _routes.indexWhere((r) => r.id == updatedRoute.id);
     if (index != -1) {
@@ -172,11 +195,13 @@ extension UserExtension on User {
     int? id,
     String? username,
     String? email,
+    String? role,
   }) {
     return User(
       id: id ?? this.id,
       username: username ?? this.username,
       email: email ?? this.email,
+      role: role ?? this.role,
     );
   }
 }

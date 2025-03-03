@@ -92,6 +92,7 @@ class RouteDatabase {
     int? keyID = await store.add(db, {
       'username': user.username,
       'email': user.email,
+      'role': user.role, // บันทึก role
     });
     await db.close();
     return keyID;
@@ -106,13 +107,14 @@ class RouteDatabase {
         id: record.key,
         username: record['username']?.toString() ?? '',
         email: record['email']?.toString() ?? '',
+        role: record['role']?.toString() ?? 'general', // ค่าเริ่มต้นเป็น general
       );
     }).toList();
     await db.close();
     return users;
   }
 
-  // ตั๋ว (เชื่อมโยงกับผู้ใช้)
+  // ตั๋ว
   Future<int?> insertTicket(TransportTicket ticket) async {
     var db = await openDatabase();
     var store = intMapStoreFactory.store('tickets');
@@ -123,7 +125,7 @@ class RouteDatabase {
       'purchaseDate': ticket.purchaseDate.toIso8601String(),
       'status': ticket.status,
       'quantity': ticket.quantity,
-      'userId': ticket.userId, // เพิ่ม userId
+      'userId': ticket.userId,
     });
     await db.close();
     return keyID;
@@ -147,7 +149,7 @@ class RouteDatabase {
             : DateTime.now(),
         status: record['status']?.toString() ?? 'unknown',
         quantity: record['quantity'] != null ? int.parse(record['quantity'].toString()) : 1,
-        userId: record['userId'] != null ? int.parse(record['userId'].toString()) : 0, // ดึง userId
+        userId: record['userId'] != null ? int.parse(record['userId'].toString()) : 0,
       );
     }).toList();
     await db.close();

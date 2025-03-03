@@ -63,7 +63,7 @@ class _TransportNavigationHostState extends State<TransportNavigationHost> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<SmartTransportProvider>(context, listen: false);
-      provider.fetchUsers();
+      provider.fetchUsers(); // เรียก fetchUsers
       provider.fetchRoutes();
       provider.fetchTickets();
     });
@@ -109,12 +109,26 @@ class TransportHomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('ระบบขนส่งสาธารณะอัจฉริยะ'),
+        title: Consumer<SmartTransportProvider>(
+          builder: (context, provider, child) {
+            return Text(
+              'ระบบขนส่งสาธารณะอัจฉริยะ - ${provider.currentUser?.username ?? "ไม่ระบุ"}',
+            );
+          },
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.pushNamed(context, '/routeForm');
+          Consumer<SmartTransportProvider>(
+            builder: (context, provider, child) {
+              final userRole = provider.currentUser?.role ?? 'general';
+              if (userRole == 'admin') {
+                return IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/routeForm');
+                  },
+                );
+              }
+              return const SizedBox.shrink();
             },
           ),
         ],
@@ -147,12 +161,14 @@ class TransportHomePage extends StatelessWidget {
               return Dismissible(
                 key: Key(route.id.toString()),
                 direction: DismissDirection.horizontal,
-                onDismissed: (direction) {
-                  provider.removeRoute(route);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${route.routeName} ถูกลบแล้ว')),
-                  );
-                },
+                onDismissed: provider.currentUser?.role == 'admin'
+                    ? (direction) {
+                        provider.removeRoute(route);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('${route.routeName} ถูกลบแล้ว')),
+                        );
+                      }
+                    : null,
                 background: Container(
                   color: Colors.red,
                   alignment: Alignment.centerRight,
@@ -179,12 +195,13 @@ class TransportHomePage extends StatelessWidget {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/routeEdit', arguments: route);
-                          },
-                        ),
+                        if (provider.currentUser?.role == 'admin')
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/routeEdit', arguments: route);
+                            },
+                          ),
                         IconButton(
                           icon: const Icon(Icons.confirmation_num),
                           onPressed: () {
