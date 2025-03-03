@@ -1,23 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:smart_transport/model/smart_route.dart';
 import 'package:smart_transport/model/transport_ticket.dart';
+import 'package:smart_transport/model/user.dart';
 import 'package:smart_transport/screens/route_database.dart';
 
 class SmartTransportProvider with ChangeNotifier {
   List<SmartRoute> _routes = [];
   List<TransportTicket> _tickets = [];
+  List<User> _users = [];
+  User? _currentUser;
   late RouteDatabase _db;
-  bool _isLoading = false;
+  bool _isLoading = false; // เพิ่ม _isLoading
 
   SmartTransportProvider() {
     _db = RouteDatabase(dbName: 'smart_transport.db');
-    fetchRoutes();
-    fetchTickets();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fetchUsers();
+      fetchRoutes();
+      fetchTickets();
+    });
   }
 
   List<SmartRoute> get routes => _routes;
-  List<TransportTicket> get tickets => _tickets;
-  bool get isLoading => _isLoading;
+  List<TransportTicket> get tickets => _currentUser != null
+      ? _tickets.where((ticket) => ticket.userId == _currentUser!.id).toList()
+      : _tickets;
+  List<User> get users => _users;
+  User? get currentUser => _currentUser;
+  bool get isLoading => _isLoading; // เพิ่ม getter isLoading
+
+  void setCurrentUser(User user) {
+    _currentUser = user;
+    notifyListeners();
+  }
 
   Future<void> fetchRoutes() async {
     _isLoading = true;
@@ -30,7 +45,18 @@ class SmartTransportProvider with ChangeNotifier {
   Future<void> fetchTickets() async {
     _isLoading = true;
     notifyListeners();
-    _tickets = await _db.loadAllTickets();
+    _tickets = await _db.loadAllTickets(userId: _currentUser?.id);
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> fetchUsers() async {
+    _isLoading = true;
+    notifyListeners();
+    _users = await _db.loadAllUsers();
+    if (_users.isNotEmpty && _currentUser == null) {
+      _currentUser = _users.first;
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -58,7 +84,8 @@ class SmartTransportProvider with ChangeNotifier {
     }
   }
 
-  Future<void> purchaseTicket(SmartRoute route, double fare) async {
+  Future<void> purchaseTicket(SmartRoute route, double fare, int quantity) async {
+    if (_currentUser == null) throw Exception('กรุณาเลือกผู้ใช้ก่อนซื้อตั๋ว');
     final ticket = TransportTicket(
       id: 0,
       routeId: route.id,
@@ -66,6 +93,8 @@ class SmartTransportProvider with ChangeNotifier {
       fare: fare,
       purchaseDate: DateTime.now(),
       status: 'active',
+      quantity: quantity,
+      userId: _currentUser!.id,
     );
     int? newId = await _db.insertTicket(ticket);
     if (newId != null) {
@@ -79,6 +108,15 @@ class SmartTransportProvider with ChangeNotifier {
     _tickets.removeWhere((t) => t.id == ticket.id);
     notifyListeners();
   }
+
+  Future<void> addUser(User user) async {
+    int? newId = await _db.insertUser(user);
+    if (newId != null) {
+      _users.add(user.copyWith(id: newId));
+      if (_currentUser == null) _currentUser = _users.first;
+      notifyListeners();
+    }
+  }
 }
 
 extension SmartRouteExtension on SmartRoute {
@@ -90,7 +128,7 @@ extension SmartRouteExtension on SmartRoute {
     String? vehicleNumber,
     String? departureTime,
     String? estimatedArrivalTime,
-    int? crowdLevel,
+    double? fare,
   }) {
     return SmartRoute(
       id: id ?? this.id,
@@ -100,7 +138,7 @@ extension SmartRouteExtension on SmartRoute {
       vehicleNumber: vehicleNumber ?? this.vehicleNumber,
       departureTime: departureTime ?? this.departureTime,
       estimatedArrivalTime: estimatedArrivalTime ?? this.estimatedArrivalTime,
-      crowdLevel: crowdLevel ?? this.crowdLevel,
+      fare: fare ?? this.fare,
     );
   }
 }
@@ -113,6 +151,8 @@ extension TransportTicketExtension on TransportTicket {
     double? fare,
     DateTime? purchaseDate,
     String? status,
+    int? quantity,
+    int? userId,
   }) {
     return TransportTicket(
       id: id ?? this.id,
@@ -121,6 +161,22 @@ extension TransportTicketExtension on TransportTicket {
       fare: fare ?? this.fare,
       purchaseDate: purchaseDate ?? this.purchaseDate,
       status: status ?? this.status,
+      quantity: quantity ?? this.quantity,
+      userId: userId ?? this.userId,
+    );
+  }
+}
+
+extension UserExtension on User {
+  User copyWith({
+    int? id,
+    String? username,
+    String? email,
+  }) {
+    return User(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
     );
   }
 }

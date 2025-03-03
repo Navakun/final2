@@ -6,7 +6,7 @@ class SmartRoute {
   final String vehicleNumber;
   final String departureTime;
   final String estimatedArrivalTime;
-  final int crowdLevel;
+  final double fare;
 
   SmartRoute({
     required this.id,
@@ -16,6 +16,6 @@ class SmartRoute {
     required this.vehicleNumber,
     required this.departureTime,
     required this.estimatedArrivalTime,
-    required this.crowdLevel,
+    required this.fare,
   });
 }

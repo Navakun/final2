@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:smart_transport/model/smart_route.dart';
 import 'package:smart_transport/provider/smart_transport_provider.dart';
 
-class TransportHomeScreen extends StatelessWidget {
-  const TransportHomeScreen({super.key});
+class TransportHomePage extends StatelessWidget {
+  const TransportHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +23,9 @@ class TransportHomeScreen extends StatelessWidget {
       ),
       body: Consumer<SmartTransportProvider>(
         builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (provider.routes.isEmpty) {
             return const Center(
               child: Text(
@@ -60,7 +63,7 @@ class TransportHomeScreen extends StatelessWidget {
                       children: [
                         Text('จาก: ${route.startPoint} → ถึง: ${route.endPoint}'),
                         Text('ออก: ${route.departureTime} | ถึง: ${route.estimatedArrivalTime}'),
-                        Text('ความหนาแน่น: ${route.crowdLevel}%'),
+                        Text('ราคาตั๋ว: ${route.fare} บาท'),
                       ],
                     ),
                     leading: CircleAvatar(
@@ -99,26 +102,49 @@ class TransportHomeScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         final provider = Provider.of<SmartTransportProvider>(context, listen: false);
-        final fareController = TextEditingController();
+        final fareController = TextEditingController(text: route.fare.toString());
+        final quantityController = TextEditingController(text: '1'); // เพิ่มช่องจำนวนตั๋ว
 
         return AlertDialog(
           title: Text('ซื้อตั๋วสำหรับ ${route.routeName}'),
-          content: TextFormField(
-            decoration: const InputDecoration(labelText: 'ค่าโดยสาร (บาท)'),
-            keyboardType: TextInputType.number,
-            controller: fareController,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'กรุณาป้อนค่าโดยสาร';
-              }
-              try {
-                double fare = double.parse(value);
-                if (fare <= 0) return 'ค่าโดยสารต้องมากกว่า 0';
-              } catch (e) {
-                return 'กรุณาป้อนตัวเลขเท่านั้น';
-              }
-              return null;
-            },
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'ค่าโดยสาร (บาท)'),
+                keyboardType: TextInputType.number,
+                controller: fareController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'กรุณาป้อนค่าโดยสาร';
+                  }
+                  try {
+                    double fare = double.parse(value);
+                    if (fare <= 0) return 'ค่าโดยสารต้องมากกว่า 0';
+                  } catch (e) {
+                    return 'กรุณาป้อนตัวเลขเท่านั้น';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'จำนวนตั๋ว'),
+                keyboardType: TextInputType.number,
+                controller: quantityController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'กรุณาป้อนจำนวนตั๋ว';
+                  }
+                  try {
+                    int quantity = int.parse(value);
+                    if (quantity <= 0) return 'จำนวนตั๋วต้องมากกว่า 0';
+                  } catch (e) {
+                    return 'กรุณาป้อนตัวเลขเท่านั้น';
+                  }
+                  return null;
+                },
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -127,8 +153,12 @@ class TransportHomeScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                if (fareController.text.isNotEmpty) {
-                  provider.purchaseTicket(route, double.parse(fareController.text));
+                if (fareController.text.isNotEmpty && quantityController.text.isNotEmpty) {
+                  provider.purchaseTicket(
+                    route,
+                    double.parse(fareController.text),
+                    int.parse(quantityController.text), // เพิ่ม quantity
+                  );
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('ซื้อตั๋วสำเร็จ')),

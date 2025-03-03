@@ -6,7 +6,6 @@ import 'package:smart_transport/screens/route_form_screen.dart';
 import 'package:smart_transport/screens/route_edit_screen.dart';
 import 'package:smart_transport/screens/ticket_management_screen.dart';
 import 'package:smart_transport/screens/user_profile_screen.dart';
-import 'package:smart_transport/model/transport_ticket.dart';
 
 void main() {
   runApp(
@@ -54,16 +53,20 @@ class _TransportNavigationHostState extends State<TransportNavigationHost> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const TransportHomePage(), // หน้าเส้นทาง
-    const TicketManagementScreen(), // หน้าตั๋ว
-    const UserProfileScreen(), // หน้าโปรไฟล์
+    const TransportHomePage(),
+    const TicketManagementScreen(),
+    const UserProfileScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
-    Provider.of<SmartTransportProvider>(context, listen: false).fetchRoutes();
-    Provider.of<SmartTransportProvider>(context, listen: false).fetchTickets();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<SmartTransportProvider>(context, listen: false);
+      provider.fetchUsers();
+      provider.fetchRoutes();
+      provider.fetchTickets();
+    });
   }
 
   void _onNavItemTapped(int index) {
@@ -118,6 +121,17 @@ class TransportHomePage extends StatelessWidget {
       ),
       body: Consumer<SmartTransportProvider>(
         builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (provider.currentUser == null) {
+            return const Center(
+              child: Text(
+                'กรุณาเลือกผู้ใช้ในหน้าโปรไฟล์',
+                style: TextStyle(fontSize: 20),
+              ),
+            );
+          }
           if (provider.routes.isEmpty) {
             return const Center(
               child: Text(
@@ -155,7 +169,7 @@ class TransportHomePage extends StatelessWidget {
                       children: [
                         Text('จาก: ${route.startPoint} → ถึง: ${route.endPoint}'),
                         Text('ออก: ${route.departureTime} | ถึง: ${route.estimatedArrivalTime}'),
-                        Text('ความหนาแน่น: ${route.crowdLevel}%'),
+                        Text('ราคาตั๋ว: ${route.fare} บาท'),
                       ],
                     ),
                     leading: CircleAvatar(
@@ -194,26 +208,50 @@ class TransportHomePage extends StatelessWidget {
       context: context,
       builder: (context) {
         final provider = Provider.of<SmartTransportProvider>(context, listen: false);
-        final fareController = TextEditingController();
+        final fareController = TextEditingController(text: route.fare.toString());
+        final quantityController = TextEditingController(text: '1');
 
         return AlertDialog(
           title: Text('ซื้อตั๋วสำหรับ ${route.routeName}'),
-          content: TextFormField(
-            decoration: const InputDecoration(labelText: 'ค่าโดยสาร (บาท)'),
-            keyboardType: TextInputType.number,
-            controller: fareController,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'กรุณาป้อนค่าโดยสาร';
-              }
-              try {
-                double fare = double.parse(value);
-                if (fare <= 0) return 'ค่าโดยสารต้องมากกว่า 0';
-              } catch (e) {
-                return 'กรุณาป้อนตัวเลขเท่านั้น';
-              }
-              return null;
-            },
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('ผู้ใช้: ${provider.currentUser?.username ?? "ไม่ระบุ"}'),
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'ค่าโดยสาร (บาท)'),
+                keyboardType: TextInputType.number,
+                controller: fareController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'กรุณาป้อนค่าโดยสาร';
+                  }
+                  try {
+                    double fare = double.parse(value);
+                    if (fare <= 0) return 'ค่าโดยสารต้องมากกว่า 0';
+                  } catch (e) {
+                    return 'กรุณาป้อนตัวเลขเท่านั้น';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'จำนวนตั๋ว'),
+                keyboardType: TextInputType.number,
+                controller: quantityController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'กรุณาป้อนจำนวนตั๋ว';
+                  }
+                  try {
+                    int quantity = int.parse(value);
+                    if (quantity <= 0) return 'จำนวนตั๋วต้องมากกว่า 0';
+                  } catch (e) {
+                    return 'กรุณาป้อนตัวเลขเท่านั้น';
+                  }
+                  return null;
+                },
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -222,8 +260,19 @@ class TransportHomePage extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                if (fareController.text.isNotEmpty) {
-                  provider.purchaseTicket(route, double.parse(fareController.text));
+                if (provider.currentUser == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('กรุณาเลือกผู้ใช้ก่อนซื้อตั๋ว')),
+                  );
+                  Navigator.pop(context);
+                  return;
+                }
+                if (fareController.text.isNotEmpty && quantityController.text.isNotEmpty) {
+                  provider.purchaseTicket(
+                    route,
+                    double.parse(fareController.text),
+                    int.parse(quantityController.text),
+                  );
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('ซื้อตั๋วสำเร็จ')),

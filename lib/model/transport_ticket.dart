@@ -5,6 +5,8 @@ class TransportTicket {
   final double fare;
   final DateTime purchaseDate;
   final String status;
+  final int quantity;
+  final int userId; // เพิ่ม userId
 
   TransportTicket({
     required this.id,
@@ -13,5 +15,7 @@ class TransportTicket {
     required this.fare,
     required this.purchaseDate,
     required this.status,
+    required this.quantity,
+    required this.userId,
   });
 }

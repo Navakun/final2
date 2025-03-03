@@ -20,19 +20,18 @@ class _RouteEditScreenState extends State<RouteEditScreen> {
   final vehicleNumberController = TextEditingController();
   final departureTimeController = TextEditingController();
   final estimatedArrivalTimeController = TextEditingController();
-  final crowdLevelController = TextEditingController();
+  final fareController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // กำหนดค่าเริ่มต้นจากข้อมูลที่ส่งมา
     routeNameController.text = widget.route.routeName;
     startPointController.text = widget.route.startPoint;
     endPointController.text = widget.route.endPoint;
     vehicleNumberController.text = widget.route.vehicleNumber;
     departureTimeController.text = widget.route.departureTime;
     estimatedArrivalTimeController.text = widget.route.estimatedArrivalTime;
-    crowdLevelController.text = widget.route.crowdLevel.toString();
+    fareController.text = widget.route.fare.toString();
   }
 
   @override
@@ -95,7 +94,7 @@ class _RouteEditScreenState extends State<RouteEditScreen> {
                   if (value == null || value.isEmpty) {
                     return "กรุณาป้อนเวลาออกเดินทาง";
                   }
-                  return null; // อาจเพิ่มการตรวจสอบรูปแบบเวลาในอนาคต
+                  return null;
                 },
               ),
               TextFormField(
@@ -109,17 +108,17 @@ class _RouteEditScreenState extends State<RouteEditScreen> {
                 },
               ),
               TextFormField(
-                decoration: const InputDecoration(labelText: 'ระดับความหนาแน่น (%)'),
+                decoration: const InputDecoration(labelText: 'ราคาตั๋ว (บาท)'),
                 keyboardType: TextInputType.number,
-                controller: crowdLevelController,
+                controller: fareController,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return "กรุณาป้อนระดับความหนาแน่น";
+                    return "กรุณาป้อนราคาตั๋ว";
                   }
                   try {
-                    int crowdLevel = int.parse(value);
-                    if (crowdLevel < 0 || crowdLevel > 100) {
-                      return "กรุณาป้อนค่าระหว่าง 0-100";
+                    double fare = double.parse(value);
+                    if (fare <= 0) {
+                      return "ราคาตั๋วต้องมากกว่า 0";
                     }
                   } catch (e) {
                     return "กรุณาป้อนเป็นตัวเลขเท่านั้น";
@@ -131,7 +130,6 @@ class _RouteEditScreenState extends State<RouteEditScreen> {
               ElevatedButton(
                 onPressed: () {
                   if (formKey.currentState!.validate()) {
-                    // สร้าง SmartRoute ใหม่จากข้อมูลในฟอร์ม
                     SmartRoute updatedRoute = SmartRoute(
                       id: widget.route.id,
                       routeName: routeNameController.text,
@@ -140,14 +138,11 @@ class _RouteEditScreenState extends State<RouteEditScreen> {
                       vehicleNumber: vehicleNumberController.text,
                       departureTime: departureTimeController.text,
                       estimatedArrivalTime: estimatedArrivalTimeController.text,
-                      crowdLevel: int.parse(crowdLevelController.text),
+                      fare: double.parse(fareController.text),
                     );
 
-                    // อัปเดตข้อมูลผ่าน Provider
                     Provider.of<SmartTransportProvider>(context, listen: false)
                         .updateRoute(updatedRoute);
-
-                    // ปิดหน้าจอ
                     Navigator.pop(context);
                   }
                 },
@@ -168,7 +163,7 @@ class _RouteEditScreenState extends State<RouteEditScreen> {
     vehicleNumberController.dispose();
     departureTimeController.dispose();
     estimatedArrivalTimeController.dispose();
-    crowdLevelController.dispose();
+    fareController.dispose();
     super.dispose();
   }
 }
